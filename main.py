@@ -1,11 +1,8 @@
 import asyncio
 import gui
+from utils import get_parser
 from time import time
 
-# Программе понадобятся несколько параллельных задач —
-# одна рисует окно интерфейса,
-# другая слушает сервер,
-# третья отравляет сообщения.
 
 
 async def generate_msgs(queue):
@@ -16,7 +13,10 @@ async def generate_msgs(queue):
 
 
 async def main():
-    # loop = asyncio.get_event_loop()
+
+    parser = get_parser()
+    args = parser.parse_args()
+    print(args)
 
     messages_queue = asyncio.Queue()
     sending_queue = asyncio.Queue()
@@ -36,5 +36,4 @@ async def main():
 
 
 if __name__ == '__main__':
-    # main()
     asyncio.run(main())
