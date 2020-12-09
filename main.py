@@ -1,6 +1,6 @@
 import asyncio
 import gui
-from utils import get_parser, open_connection, get_answer, write_line_to_file
+from utils import get_parser, open_connection, get_answer, write_line_to_file, load_from_file
 from time import time
 
 
@@ -9,7 +9,8 @@ async def write_chat_line_to_file(chat_file_name, chat_line):
         await chat_history.write(chat_line)
 
 
-async def read_msgs(host, port, queue, histoty_queue, attempts=3):
+async def read_msgs(host, port, queue, histoty_queue, file_name, attempts=3):
+    await load_from_file(file_name, message_queue=queue)
     async with open_connection(host, port, attempts) as rw:
         reader = rw[0]
         while True:
@@ -54,6 +55,7 @@ async def main():
         read_msgs(host=host, port=port,
                   queue=messages_queue,
                   histoty_queue=histoty_queue,
+                  file_name=history_file_name,
                   attempts=attempts),
         gui.draw(messages_queue=messages_queue,
                  sending_queue=sending_queue,
