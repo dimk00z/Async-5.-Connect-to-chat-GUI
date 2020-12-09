@@ -8,7 +8,6 @@ from utils import get_message_with_datetime, get_parser, \
 
 
 
-
 async def write_chat_line_to_file(chat_file_name, chat_line):
     async with aiofiles.open(chat_file_name, "a") as chat_history:
         await chat_history.write(chat_line)

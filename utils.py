@@ -4,6 +4,8 @@ import signal
 import socket
 import asyncio
 import contextlib
+import aiofiles
+
 
 from datetime import datetime
 
@@ -52,10 +54,12 @@ def get_parser():
                         help="Attempts to reconnect", type=int)
     parser.add_argument("-t", '--token',
                         help="Chat token", type=str)
-    parser.add_argument("-f", '--file_name', default='minechat.history',
+    parser.add_argument("-f", '--c', default='minechat.history',
                         help="Chat history file name", type=str)
     parser.add_argument("-p", '--port', default=5000,
                         help="Port number", type=int)
+    parser.add_argument("-f", '--file_name', default='minechat.history',
+                        help="Chat history file name", type=str)
     return parser
 
 
@@ -74,3 +78,9 @@ async def get_answer(reader, use_datetime=True):
         answer = get_message_with_datetime(answer)
     logging.debug(answer)
     return answer
+
+
+async def write_line_to_file(chat_file_name, line):
+    async with aiofiles.open(chat_file_name, "a") as chat_history:
+        await chat_history.write(f'{line}\n')
+        logging.debug('chat_line')
