@@ -1,11 +1,8 @@
-import configargparse
 import logging
 import signal
-import socket
 import asyncio
 import contextlib
-import aiofiles
-
+import json
 
 from datetime import datetime
 
@@ -45,24 +42,6 @@ async def open_connection(server, port, attempts=1):
             logging.debug("Connection closed")
 
 
-def get_parser():
-    parser = configargparse.get_argument_parser()
-
-    parser.add_argument("-h", '--host', default='minechat.dvmn.org',
-                        help="Host name", type=str)
-    parser.add_argument("-a", '--attempts', default=3,
-                        help="Attempts to reconnect", type=int)
-    parser.add_argument("-t", '--token',
-                        help="Chat token", type=str)
-    parser.add_argument("-f", '--c', default='minechat.history',
-                        help="Chat history file name", type=str)
-    parser.add_argument("-p", '--port', default=5000,
-                        help="Port number", type=int)
-    parser.add_argument("-f", '--file_name', default='minechat.history',
-                        help="Chat history file name", type=str)
-    return parser
-
-
 def get_message_with_datetime(message):
     formated_datetime = datetime.now().strftime('%d.%m.%Y %H:%M')
     return f'[{formated_datetime}] {message}'
@@ -80,13 +59,49 @@ async def get_answer(reader, use_datetime=True):
     return answer
 
 
-async def write_line_to_file(chat_file_name, line):
-    async with aiofiles.open(chat_file_name, "a") as chat_history:
-        await chat_history.write(f'{line}\n')
-        logging.debug('chat_line')
+def sanitize(message):
+    return message.replace("\n", "").replace("\r", "")
 
 
-async def load_from_file(file_name, message_queue):
-    async with aiofiles.open(file_name) as file:
-        async for line in file:
-            message_queue.put_nowait(line.strip())
+async def write_message_to_chat(writer, message=''):
+    message = "{}\n\n".format(sanitize(message))
+    writer.write(message.encode())
+    await writer.drain()
+
+
+def get_user_text(string):
+    return input(string)
+
+
+async def register_user(reader, writer, after_incorrect_login=False):
+    if after_incorrect_login == False:
+        await get_answer(reader)
+        await write_message_to_chat(writer)
+    await get_answer(reader)
+    nick_name = sanitize(get_user_text('Enter your nick name: '))
+    writer.write(f'{nick_name}\n'.encode())
+    await writer.drain()
+    credentials = json.loads(await reader.readline())
+    logging.debug(credentials)
+    return credentials
+
+
+async def authorise(token, reader, writer):
+    host_answer = await get_answer(reader)
+    await write_message_to_chat(writer, token)
+    response = json.loads(await reader.readline())
+    logging.debug(response)
+    return response
+
+
+async def login(reader, writer, token):
+
+    if token is None:
+        return await register_user(reader, writer)
+
+    credentials = await authorise(token, reader, writer)
+    if credentials:
+        return credentials
+
+    print('The current token is incorrect, we are going to create new user.')
+    return await register_user(reader, writer, after_incorrect_login=True)

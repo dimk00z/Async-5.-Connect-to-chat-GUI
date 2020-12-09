@@ -1,8 +1,10 @@
 import asyncio
 import gui
+from tkinter import messagebox
 from time import time
-from utils import get_parser, open_connection, \
-    get_answer, write_line_to_file, load_from_file
+from utils.parser import get_parser
+from utils.files import write_line_to_file, load_from_file
+from utils.chat import open_connection, get_answer, login
 
 
 async def read_msgs(host, port,
@@ -24,15 +26,17 @@ async def save_messages(histoty_queue, file_name):
         await write_line_to_file(chat_file_name=file_name, line=message)
 
 
-async def send_msgs(host, port, queue):
-    while True:
-        msg = await queue.get()
-        print(msg)
-    # async def generate_msgs(queue):
-    #     while True:
-    #         message = f'Ping {int(time())}'
-    #         queue.put_nowait(message)
-    #         await asyncio.sleep(1)
+async def send_msgs(host, port, token, attempts, queue):
+    async with open_connection(host, port, attempts) as rw:
+        reader, writer = rw
+
+        credentials = await login(reader, writer, token)
+
+        # while True:
+        #     await submit_message(reader, writer)
+        while True:
+            msg = await queue.get()
+            print(msg)
 
 
 async def main():
@@ -41,8 +45,10 @@ async def main():
     args = parser.parse_args()
     host = args.host
     attempts = args.attempts
-    port = args.port
+    input_port = args.input_port
+    output_port = args.output_port
     history_file_name = args.file_name
+    token = args.token
     print(args)
 
     messages_queue = asyncio.Queue()
@@ -51,7 +57,7 @@ async def main():
     histoty_queue = asyncio.Queue()
 
     await asyncio.gather(
-        read_msgs(host=host, port=port,
+        read_msgs(host=host, port=input_port,
                   queue=messages_queue,
                   histoty_queue=histoty_queue,
                   file_name=history_file_name,
@@ -61,7 +67,8 @@ async def main():
                  status_updates_queue=status_updates_queue),
         save_messages(histoty_queue=histoty_queue,
                       file_name=history_file_name),
-        send_msgs(host, port, sending_queue))
+        send_msgs(host=host, port=output_port,
+                  token=token, attempts=attempts, queue=sending_queue))
 
 
 if __name__ == '__main__':
