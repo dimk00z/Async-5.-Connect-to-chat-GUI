@@ -21,14 +21,14 @@ async def open_connection(server, port, attempts=1):
     while True:
         reader, writer = await asyncio.open_connection(server, port)
         try:
-            logging.debug('The connection opened')
+            logging.debug(f'The connection opened {server, port}')
             signal.signal(signal.SIGINT, keyboard_interrupt_handler)
             connected = True
             yield reader, writer
             break
         except (ConnectionRefusedError, ConnectionResetError):
             if connected:
-                logging.debug("The connection was closed")
+                logging.debug(f"The connection was closed {server, port}")
                 break
             if attempt >= attempts:
                 logging.debug(
@@ -39,7 +39,7 @@ async def open_connection(server, port, attempts=1):
         finally:
             writer.close()
             await writer.wait_closed()
-            logging.debug("Connection closed")
+            logging.debug(f"Connection closed {server, port}")
 
 
 def get_message_with_datetime(message):

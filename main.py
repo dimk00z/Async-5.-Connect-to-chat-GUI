@@ -5,7 +5,7 @@ from tkinter import messagebox
 from time import time
 from utils.parser import get_parser
 from utils.files import write_line_to_file, load_from_file
-from utils.chat import open_connection, get_answer, login, get_user_text
+from utils.chat import open_connection, get_answer, login, write_message_to_chat, get_message_with_datetime
 
 
 async def read_msgs(host, port,
@@ -30,15 +30,16 @@ async def save_messages(histoty_queue, file_name):
 async def send_msgs(host, port, token, attempts, queue):
     async with open_connection(host, port, attempts) as rw:
         reader, writer = rw
-        # print(await get_user_text(queue))
-        # print('eee')
+
         credentials = await login(reader, writer, token, queue)
 
-        # while True:
-        #     await submit_message(reader, writer)
-        # while True:
-        #     msg = await queue.get()
-        #     print(msg)
+        while True:
+            message = await queue.get()
+            print(message)
+            host_answer = await get_answer(reader)
+            # message = get_user_text('Enter your message: ')
+            await write_message_to_chat(writer, message)
+            logging.debug(get_message_with_datetime(message))
 
 
 async def main():
