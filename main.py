@@ -1,10 +1,11 @@
 import asyncio
 import gui
+import logging
 from tkinter import messagebox
 from time import time
 from utils.parser import get_parser
 from utils.files import write_line_to_file, load_from_file
-from utils.chat import open_connection, get_answer, login
+from utils.chat import open_connection, get_answer, login, get_user_text
 
 
 async def read_msgs(host, port,
@@ -29,18 +30,19 @@ async def save_messages(histoty_queue, file_name):
 async def send_msgs(host, port, token, attempts, queue):
     async with open_connection(host, port, attempts) as rw:
         reader, writer = rw
-
-        credentials = await login(reader, writer, token)
+        # print(await get_user_text(queue))
+        # print('eee')
+        credentials = await login(reader, writer, token, queue)
 
         # while True:
         #     await submit_message(reader, writer)
-        while True:
-            msg = await queue.get()
-            print(msg)
+        # while True:
+        #     msg = await queue.get()
+        #     print(msg)
 
 
 async def main():
-
+    logging.basicConfig(level=logging.DEBUG)
     parser = get_parser()
     args = parser.parse_args()
     host = args.host
@@ -49,7 +51,7 @@ async def main():
     output_port = args.output_port
     history_file_name = args.file_name
     token = args.token
-    print(args)
+    token = 'd5a5384e-3a2c-11eb-8c47-0242ac110002'
 
     messages_queue = asyncio.Queue()
     sending_queue = asyncio.Queue()

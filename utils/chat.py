@@ -69,17 +69,19 @@ async def write_message_to_chat(writer, message=''):
     await writer.drain()
 
 
-def get_user_text(string):
-    return input(string)
+async def get_user_text(queue):
+    return await queue.get()
 
 
-async def register_user(reader, writer, after_incorrect_login=False):
+async def register_user(reader, writer, queue, after_incorrect_login=False):
     if after_incorrect_login == False:
         await get_answer(reader)
         await write_message_to_chat(writer)
     await get_answer(reader)
-    nick_name = sanitize(get_user_text('Enter your nick name: '))
-    writer.write(f'{nick_name}\n'.encode())
+    writer.write('\n'.encode())
+    nick_name = await get_user_text(queue)
+    print(nick_name)
+    writer.write(f'{nick_name}'.encode())
     await writer.drain()
     credentials = json.loads(await reader.readline())
     logging.debug(credentials)
@@ -94,10 +96,11 @@ async def authorise(token, reader, writer):
     return response
 
 
-async def login(reader, writer, token):
+async def login(reader, writer, token, queue):
 
     if token is None:
-        return await register_user(reader, writer)
+        print(token)
+        return await register_user(reader, writer, queue)
 
     credentials = await authorise(token, reader, writer)
     if credentials:
