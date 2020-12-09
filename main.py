@@ -1,15 +1,23 @@
 import asyncio
 import gui
-from utils import get_parser
+from utils import get_parser, open_connection, get_answer
 from time import time
 
 
+async def read_msgs(host, port, queue, attempts=3):
+    async with open_connection(host, port, attempts) as rw:
+        reader = rw[0]
+        while True:
+            message = await get_answer(reader)
+            queue.put_nowait(message)
+            await asyncio.sleep(1)
 
-async def generate_msgs(queue):
-    while True:
-        message = f'Ping {int(time())}'
-        queue.put_nowait(message)
-        await asyncio.sleep(1)
+
+# async def generate_msgs(queue):
+#     while True:
+#         message = f'Ping {int(time())}'
+#         queue.put_nowait(message)
+#         await asyncio.sleep(1)
 
 
 async def main():
@@ -27,9 +35,13 @@ async def main():
     # status_updates_queue.put_nowait(gui.ReadConnectionStateChanged.CLOSED)
     # event = gui.NicknameReceived('Василий Пупкин')
     # status_updates_queue.put_nowait(event)
+    host = args.host
+    attempts = args.attempts
+    port = args.port
 
     await asyncio.gather(
-        generate_msgs(messages_queue),
+        read_msgs(host=host, port=port,
+                  queue=messages_queue, attempts=attempts),
         gui.draw(messages_queue=messages_queue,
                  sending_queue=sending_queue,
                  status_updates_queue=status_updates_queue))
