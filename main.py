@@ -10,6 +10,7 @@ from os import getenv
 from dotenv import load_dotenv
 from socket import gaierror
 
+from typing import Dict, Tuple
 
 from utils.parser import get_parser
 from utils.files import write_line_to_file, load_from_file
@@ -24,7 +25,8 @@ DELAY_BETWEEN_PING_PONG = 10
 
 async def read_msgs(host, port,
                     file_name, connection_states,
-                    queues, attempts=3):
+                    queues: Dict[str, asyncio.queues.Queue],
+                    attempts: int = 3):
     await load_from_file(file_name,
                          message_queue=queues['messages_queue'])
     async with open_connection(host, port,
@@ -39,16 +41,19 @@ async def read_msgs(host, port,
                 "Connection is alive. New message")
 
 
-async def save_messages(history_queue, file_name):
+async def save_messages(history_queue: asyncio.queues.Queue,
+                        file_name: str) -> None:
     while True:
-        message = await history_queue.get()
+        message: str = await history_queue.get()
         await write_line_to_file(chat_file_name=file_name,
                                  line=message)
 
 
-async def send_message(reader, writer, queues):
+async def send_message(reader: asyncio.streams.StreamReader,
+                       writer: asyncio.streams.StreamReader,
+                       queues: Dict[str, asyncio.queues.Queue]) -> None:
     while True:
-        message = await queues['sending_queue'].get()
+        message: str = await queues['sending_queue'].get()
         host_answer = await get_answer(reader)
         await write_message_to_chat(writer, message)
         queues["watchdog_queue"].put_nowait(
@@ -56,7 +61,9 @@ async def send_message(reader, writer, queues):
         app_logger.debug(get_message_with_datetime(message))
 
 
-async def ping_pong(reader, writer, watchdog_queue):
+async def ping_pong(reader: asyncio.streams.StreamReader,
+                    writer: asyncio.streams.StreamReader,
+                    watchdog_queue: asyncio.queues.Queue) -> None:
     while True:
         try:
             async with timeout(PING_PONG_TIMEOUT):
@@ -71,14 +78,18 @@ async def ping_pong(reader, writer, watchdog_queue):
             raise ConnectionError
 
 
-async def send_msgs(host, port, token,
-                    connection_states,  attempts, queues):
+async def send_msgs(host: str, port: str, token: str,
+                    connection_states,
+                    attempts: int,
+                    queues: Dict[str, asyncio.queues.Queue]) -> None:
     async with open_connection(host, port, connection_states,
                                queues['status_updates_queue'], attempts) as rw:
+
         reader, writer = rw
-        credentials = await login(reader, writer,
-                                  token, queues['sending_queue'])
-        event = gui.NicknameReceived(credentials['nickname'])
+        credentials: dict = await login(reader, writer,
+                                        token, queues['sending_queue'])
+        event: gui.NicknameReceived = gui.NicknameReceived(
+            credentials['nickname'])
         queues['status_updates_queue'].put_nowait(event)
         while True:
             async with create_task_group() as send_group:
@@ -86,7 +97,7 @@ async def send_msgs(host, port, token,
                 await send_group.spawn(ping_pong, reader, writer, queues['watchdog_queue'])
 
 
-async def watch_for_connection(watchdog_queue):
+async def watch_for_connection(watchdog_queue: asyncio.queues.Queue):
     while True:
         try:
             async with timeout(WATCH_CONNECTION_TIMEOUT):
@@ -98,7 +109,10 @@ async def watch_for_connection(watchdog_queue):
             raise ConnectionError
 
 
-async def handle_connection(queues, history_file_name, host, ports, token, attempts):
+async def handle_connection(queues: Dict[str, asyncio.queues.Queue],
+                            history_file_name: str,
+                            host: str, ports: Dict[str, str],
+                            token: str, attempts: int):
     while True:
         try:
             async with create_task_group() as connection_group:
@@ -122,23 +136,22 @@ async def handle_connection(queues, history_file_name, host, ports, token, attem
 
 async def main():
 
-    parser = get_parser()
-    args = parser.parse_args()
-    host = args.host
-    attempts = args.attempts
-    ports = {
+    args = get_parser().parse_args()
+    host: str = args.host
+    attempts: int = args.attempts
+    ports: Dict[str, str] = {
         'input_port': args.input_port,
         'output_port': args.output_port
     }
 
-    history_file_name = args.file_name
+    history_file_name: str = args.file_name
 
     env_path = Path('.') / '.env'
     load_dotenv(dotenv_path=env_path)
 
-    token = getenv('TOKEN')
+    token: str = getenv('TOKEN')
 
-    queues = {
+    queues: Dict[str, asyncio.queues.Queue] = {
         'messages_queue': asyncio.Queue(),
         'sending_queue': asyncio.Queue(),
         'status_updates_queue': asyncio.Queue(),

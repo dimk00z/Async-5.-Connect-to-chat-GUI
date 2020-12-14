@@ -2,12 +2,11 @@ import logging
 
 
 def setup_logger(
-        logger_name,
-        level=logging.INFO,
-        fmt="%(levelname)s : %(message)s",
-        datefmt="%H:%M:%S"):
+        logger_name: str,
+        level: int = logging.INFO,
+        fmt: str = "%(levelname)s : %(message)s",
+        datefmt: str = "%H:%M:%S") -> None:
     log_file_name = f'{logger_name}.log'
-
     formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
 
     logger = logging.getLogger(logger_name)

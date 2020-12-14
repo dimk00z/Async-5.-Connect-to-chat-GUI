@@ -1,7 +1,7 @@
 import configargparse
 
 
-def get_parser():
+def get_parser() -> configargparse.ArgumentParser:
     parser = configargparse.get_argument_parser()
 
     parser.add_argument("-h", '--host', default='minechat.dvmn.org',
