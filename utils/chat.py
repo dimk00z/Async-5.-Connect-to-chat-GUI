@@ -1,17 +1,24 @@
 import logging
-import signal
 import asyncio
 import contextlib
 import json
+from tkinter import messagebox
+
 
 from datetime import datetime
 
 ATTEMPT_DELAY_SECS = 3
 
 
-def keyboard_interrupt_handler(signal, frame):
-    print('\n[Program was closed]')
-    exit(0)
+class InvalidToken(Exception):
+    def __init__(self, token) -> None:
+        self.token = token
+        messagebox_title = "Неверный токен"
+        messagebox_message = f"Check the token '{self.token}'. Server hasn't accepted it. "
+        messagebox.showinfo(messagebox_title, messagebox_message)
+
+    def __str__(self) -> str:
+        return f'Invalid token "{self.token}"!'
 
 
 @contextlib.asynccontextmanager
@@ -22,7 +29,6 @@ async def open_connection(server, port, attempts=1):
         reader, writer = await asyncio.open_connection(server, port)
         try:
             logging.debug(f'The connection opened {server, port}')
-            signal.signal(signal.SIGINT, keyboard_interrupt_handler)
             connected = True
             yield reader, writer
             break
@@ -105,6 +111,4 @@ async def login(reader, writer, token, queue):
     credentials = await authorise(token, reader, writer)
     if credentials:
         return credentials
-
-    print('The current token is incorrect, we are going to create new user.')
-    return await register_user(reader, writer, after_incorrect_login=True)
+    raise InvalidToken(token)

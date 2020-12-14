@@ -1,5 +1,6 @@
 import logging
 import aiofiles
+from pathlib import Path
 
 
 async def write_line_to_file(chat_file_name, line):
@@ -9,6 +10,7 @@ async def write_line_to_file(chat_file_name, line):
 
 
 async def load_from_file(file_name, message_queue):
-    async with aiofiles.open(file_name) as file:
-        async for line in file:
-            message_queue.put_nowait(line.strip())
+    if Path(file_name).is_file():
+        async with aiofiles.open(file_name) as file:
+            async for line in file:
+                message_queue.put_nowait(line.strip())
