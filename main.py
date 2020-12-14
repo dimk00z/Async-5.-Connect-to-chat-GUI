@@ -1,8 +1,6 @@
 import asyncio
 import gui
-import logging
-from tkinter import messagebox
-from time import time
+from async_timeout import timeout
 from utils.parser import get_parser
 from utils.files import write_line_to_file, load_from_file
 from utils.chat import open_connection, get_answer, \
@@ -55,8 +53,12 @@ async def send_msgs(host, port, token,
 
 async def watch_for_connection(watchdog_queue):
     while True:
-        message = await watchdog_queue.get()
-        watchdog_logger.info(message)
+        try:
+            async with timeout(2):
+                message = await watchdog_queue.get()
+                watchdog_logger.info(message)
+        except asyncio.TimeoutError:
+            watchdog_logger.info('2s timeout is elapsed')
 
 
 async def main():
