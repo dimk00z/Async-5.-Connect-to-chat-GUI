@@ -10,36 +10,40 @@ from utils.loggers import app_logger, watchdog_logger
 
 
 async def read_msgs(host, port,
-                    queue, histoty_queue,
-                    file_name, connection_states, status_updates_queue, watchdog_queue, attempts=3):
-    await load_from_file(file_name, message_queue=queue)
-    async with open_connection(host, port, connection_states,
-                               status_updates_queue, attempts) as rw:
+                    file_name, connection_states,
+                    queues, attempts=3):
+    await load_from_file(file_name,
+                         message_queue=queues['messages_queue'])
+    async with open_connection(host, port,
+                               connection_states,
+                               queues['status_updates_queue'], attempts) as rw:
         reader = rw[0]
         while True:
             message = await get_answer(reader)
-            queue.put_nowait(message)
-            histoty_queue.put_nowait(message)
+            queues['messages_queue'].put_nowait(message)
+            queues['history_queue'].put_nowait(message)
             await asyncio.sleep(1)
 
 
-async def save_messages(histoty_queue, file_name):
+async def save_messages(history_queue, file_name):
     while True:
-        message = await histoty_queue.get()
-        await write_line_to_file(chat_file_name=file_name, line=message)
+        message = await history_queue.get()
+        await write_line_to_file(chat_file_name=file_name,
+                                 line=message)
 
 
-async def send_msgs(host, port, token, connection_states, status_updates_queue, attempts, queue, watchdog_queue):
+async def send_msgs(host, port, token,
+                    connection_states,  attempts, queues):
     async with open_connection(host, port, connection_states,
-                               status_updates_queue, attempts) as rw:
+                               queues['status_updates_queue'], attempts) as rw:
         reader, writer = rw
 
-        credentials = await login(reader, writer, token, queue)
-        # print(credentials)
+        credentials = await login(reader, writer,
+                                  token, queues['sending_queue'])
         event = gui.NicknameReceived(credentials['nickname'])
-        status_updates_queue.put_nowait(event)
+        queues['status_updates_queue'].put_nowait(event)
         while True:
-            message = await queue.get()
+            message = await queues['sending_queue'].get()
             host_answer = await get_answer(reader)
             await write_message_to_chat(writer, message)
             app_logger.debug(get_message_with_datetime(message))
@@ -62,33 +66,31 @@ async def main():
     token = args.token
     token = 'd5a5384e-3a2c-11eb-8c47-0242ac110002'
 
-    messages_queue = asyncio.Queue()
-    sending_queue = asyncio.Queue()
-    status_updates_queue = asyncio.Queue()
-    histoty_queue = asyncio.Queue()
-    watchdog_queue = asyncio.Queue()
+    queues = {
+        'messages_queue': asyncio.Queue(),
+        'sending_queue': asyncio.Queue(),
+        'status_updates_queue': asyncio.Queue(),
+        'history_queue': asyncio.Queue(),
+        'watchdog_queue': asyncio.Queue(),
+    }
 
     await asyncio.gather(
         read_msgs(host=host, port=input_port,
-                  queue=messages_queue,
-                  histoty_queue=histoty_queue,
+                  queues=queues,
                   file_name=history_file_name,
                   connection_states=gui.ReadConnectionStateChanged,
-                  status_updates_queue=status_updates_queue,
-                  watchdog_queue=watchdog_queue,
                   attempts=attempts),
-        gui.draw(messages_queue=messages_queue,
-                 sending_queue=sending_queue,
-                 status_updates_queue=status_updates_queue),
-        save_messages(histoty_queue=histoty_queue,
+        gui.draw(messages_queue=queues['messages_queue'],
+                 sending_queue=queues['sending_queue'],
+                 status_updates_queue=queues['status_updates_queue']),
+        save_messages(history_queue=queues['history_queue'],
                       file_name=history_file_name),
         send_msgs(host=host, port=output_port,
                   token=token,
                   connection_states=gui.SendingConnectionStateChanged,
-                  status_updates_queue=status_updates_queue,
-                  attempts=attempts, watchdog_queue=watchdog_queue,
-                  queue=sending_queue),
-        watch_for_connection(watchdog_queue=watchdog_queue))
+                  attempts=attempts,
+                  queues=queues),
+        watch_for_connection(watchdog_queue=queues['watchdog_queue']))
 
 
 if __name__ == '__main__':
