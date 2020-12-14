@@ -10,7 +10,7 @@ from utils.chat import open_connection, get_answer, login, write_message_to_chat
 
 async def read_msgs(host, port,
                     queue, histoty_queue,
-                    file_name, connection_states, status_updates_queue, attempts=3):
+                    file_name, connection_states, status_updates_queue, watchdog_queue, attempts=3):
     await load_from_file(file_name, message_queue=queue)
     async with open_connection(host, port, connection_states,
                                status_updates_queue, attempts) as rw:
@@ -28,7 +28,7 @@ async def save_messages(histoty_queue, file_name):
         await write_line_to_file(chat_file_name=file_name, line=message)
 
 
-async def send_msgs(host, port, token, connection_states, status_updates_queue, attempts, queue):
+async def send_msgs(host, port, token, connection_states, status_updates_queue, attempts, queue, watchdog_queue):
     async with open_connection(host, port, connection_states,
                                status_updates_queue, attempts) as rw:
         reader, writer = rw
@@ -44,6 +44,11 @@ async def send_msgs(host, port, token, connection_states, status_updates_queue, 
             # message = get_user_text('Enter your message: ')
             await write_message_to_chat(writer, message)
             logging.debug(get_message_with_datetime(message))
+
+
+async def watch_for_connection(watchdog_queue):
+    # TODO: listen / wait messages in watchdog_queue
+    pass
 
 
 async def main():
@@ -62,6 +67,7 @@ async def main():
     sending_queue = asyncio.Queue()
     status_updates_queue = asyncio.Queue()
     histoty_queue = asyncio.Queue()
+    watchdog_queue = asyncio.Queue()
 
     await asyncio.gather(
         read_msgs(host=host, port=input_port,
@@ -70,6 +76,7 @@ async def main():
                   file_name=history_file_name,
                   connection_states=gui.ReadConnectionStateChanged,
                   status_updates_queue=status_updates_queue,
+                  watchdog_queue=watchdog_queue,
                   attempts=attempts),
         gui.draw(messages_queue=messages_queue,
                  sending_queue=sending_queue,
@@ -80,8 +87,15 @@ async def main():
                   token=token,
                   connection_states=gui.SendingConnectionStateChanged,
                   status_updates_queue=status_updates_queue,
-                  attempts=attempts, queue=sending_queue))
+                  attempts=attempts, watchdog_queue=watchdog_queue,
+                  queue=sending_queue),
+        watch_for_connection(watchdog_queue=watchdog_queue))
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, gui.TkAppClosed):
+        print('----------------------------')
+        print('Have a nice day even in 2020')
+        print('----------------------------')
