@@ -6,6 +6,7 @@ from time import time
 from utils.parser import get_parser
 from utils.files import write_line_to_file, load_from_file
 from utils.chat import open_connection, get_answer, login, write_message_to_chat, get_message_with_datetime
+from utils.loggers import app_logger, watchdog_logger
 
 
 async def read_msgs(host, port,
@@ -39,11 +40,9 @@ async def send_msgs(host, port, token, connection_states, status_updates_queue, 
         status_updates_queue.put_nowait(event)
         while True:
             message = await queue.get()
-            print(message)
             host_answer = await get_answer(reader)
-            # message = get_user_text('Enter your message: ')
             await write_message_to_chat(writer, message)
-            logging.debug(get_message_with_datetime(message))
+            app_logger.debug(get_message_with_datetime(message))
 
 
 async def watch_for_connection(watchdog_queue):
@@ -52,7 +51,7 @@ async def watch_for_connection(watchdog_queue):
 
 
 async def main():
-    logging.basicConfig(level=logging.DEBUG)
+
     parser = get_parser()
     args = parser.parse_args()
     host = args.host

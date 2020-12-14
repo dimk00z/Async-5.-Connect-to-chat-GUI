@@ -1,7 +1,7 @@
-import logging
 import asyncio
 import contextlib
 import json
+from utils.loggers import app_logger, watchdog_logger
 from tkinter import messagebox
 
 
@@ -30,7 +30,7 @@ async def open_connection(server, port, connection_states,
     while True:
         reader, writer = await asyncio.open_connection(server, port)
         try:
-            logging.debug(f'The connection opened {server, port}')
+            app_logger.debug(f'The connection opened {server, port}')
             connected = True
             status_updates_queue.put_nowait(
                 connection_states.ESTABLISHED)
@@ -38,12 +38,12 @@ async def open_connection(server, port, connection_states,
             break
         except (ConnectionRefusedError, ConnectionResetError):
             if connected:
-                logging.debug(f"The connection was closed {server, port}")
+                app_logger.debug(f"The connection was closed {server, port}")
                 break
             if attempt >= attempts:
                 status_updates_queue.put_nowait(
                     connection_states.INITIATED)
-                logging.debug(
+                app_logger.debug(
                     f"There is no connection. Next try in {ATTEMPT_DELAY_SECS} seconds")
                 await asyncio.sleep(ATTEMPT_DELAY_SECS)
                 continue
@@ -51,7 +51,7 @@ async def open_connection(server, port, connection_states,
         finally:
             writer.close()
             await writer.wait_closed()
-            logging.debug(f"Connection closed {server, port}")
+            app_logger.debug(f"Connection closed {server, port}")
             status_updates_queue.put_nowait(
                 connection_states.CLOSED)
 
@@ -69,7 +69,7 @@ async def get_answer(reader, use_datetime=True):
     answer = decode_message(await reader.readline())
     if use_datetime:
         answer = get_message_with_datetime(answer)
-    logging.debug(answer)
+    app_logger.debug(answer)
     return answer
 
 
@@ -98,7 +98,7 @@ async def register_user(reader, writer, queue, after_incorrect_login=False):
     writer.write(f'{nick_name}'.encode())
     await writer.drain()
     credentials = json.loads(await reader.readline())
-    logging.debug(credentials)
+    app_logger.debug(credentials)
     return credentials
 
 
@@ -106,7 +106,7 @@ async def authorise(token, reader, writer):
     host_answer = await get_answer(reader)
     await write_message_to_chat(writer, token)
     response = json.loads(await reader.readline())
-    logging.debug(response)
+    app_logger.debug(response)
     return response
 
 
