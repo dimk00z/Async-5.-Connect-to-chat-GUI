@@ -1,8 +1,16 @@
 import asyncio
 from anyio import create_task_group, run
-import gui
-from socket import gaierror
 from async_timeout import timeout
+
+import gui
+
+from pathlib import Path
+from os import getenv
+
+from dotenv import load_dotenv
+from socket import gaierror
+
+
 from utils.parser import get_parser
 from utils.files import write_line_to_file, load_from_file
 from utils.chat import open_connection, get_answer, \
@@ -124,8 +132,11 @@ async def main():
     }
 
     history_file_name = args.file_name
-    token = args.token
-    token = 'd5a5384e-3a2c-11eb-8c47-0242ac110002'
+
+    env_path = Path('.') / '.env'
+    load_dotenv(dotenv_path=env_path)
+
+    token = getenv('TOKEN')
 
     queues = {
         'messages_queue': asyncio.Queue(),
