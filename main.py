@@ -22,7 +22,8 @@ async def read_msgs(host, port,
             message = await get_answer(reader)
             queues['messages_queue'].put_nowait(message)
             queues['history_queue'].put_nowait(message)
-            await asyncio.sleep(1)
+            queues["watchdog_queue"].put_nowait(
+                "Connection is alive. New message")
 
 
 async def save_messages(history_queue, file_name):
@@ -46,12 +47,15 @@ async def send_msgs(host, port, token,
             message = await queues['sending_queue'].get()
             host_answer = await get_answer(reader)
             await write_message_to_chat(writer, message)
+            queues["watchdog_queue"].put_nowait(
+                "Connection is alive. Message sent")
             app_logger.debug(get_message_with_datetime(message))
 
 
 async def watch_for_connection(watchdog_queue):
-    # TODO: listen / wait messages in watchdog_queue
-    pass
+    while True:
+        message = await watchdog_queue.get()
+        watchdog_logger.info(message)
 
 
 async def main():
