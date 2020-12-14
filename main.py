@@ -5,7 +5,8 @@ from tkinter import messagebox
 from time import time
 from utils.parser import get_parser
 from utils.files import write_line_to_file, load_from_file
-from utils.chat import open_connection, get_answer, login, write_message_to_chat, get_message_with_datetime
+from utils.chat import open_connection, get_answer, \
+    login, write_message_to_chat, get_message_with_datetime, InvalidToken
 from utils.loggers import app_logger, watchdog_logger
 
 
@@ -100,7 +101,10 @@ async def main():
 if __name__ == '__main__':
     try:
         asyncio.run(main())
-    except (KeyboardInterrupt, gui.TkAppClosed):
+    except (KeyboardInterrupt, gui.TkAppClosed, InvalidToken) as ex:
+        if type(ex) is InvalidToken:
+            print('----------------------------')
+            print(ex)
         print('----------------------------')
         print('Have a nice day even in 2020')
         print('----------------------------')

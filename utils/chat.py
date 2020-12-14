@@ -18,7 +18,7 @@ class InvalidToken(Exception):
         messagebox.showinfo(messagebox_title, messagebox_message)
 
     def __str__(self) -> str:
-        return f'Invalid token "{self.token}"!'
+        return f'Invalid token "{self.token}"'
 
 
 @contextlib.asynccontextmanager
