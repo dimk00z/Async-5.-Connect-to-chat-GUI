@@ -22,7 +22,9 @@ class InvalidToken(Exception):
 
 
 @contextlib.asynccontextmanager
-async def open_connection(server, port, attempts=1):
+async def open_connection(server, port, connection_states,
+                          status_updates_queue, attempts=1):
+
     attempt = 0
     connected = False
     while True:
@@ -30,6 +32,8 @@ async def open_connection(server, port, attempts=1):
         try:
             logging.debug(f'The connection opened {server, port}')
             connected = True
+            status_updates_queue.put_nowait(
+                connection_states.ESTABLISHED)
             yield reader, writer
             break
         except (ConnectionRefusedError, ConnectionResetError):
@@ -37,6 +41,8 @@ async def open_connection(server, port, attempts=1):
                 logging.debug(f"The connection was closed {server, port}")
                 break
             if attempt >= attempts:
+                status_updates_queue.put_nowait(
+                    connection_states.INITIATED)
                 logging.debug(
                     f"There is no connection. Next try in {ATTEMPT_DELAY_SECS} seconds")
                 await asyncio.sleep(ATTEMPT_DELAY_SECS)
@@ -46,6 +52,8 @@ async def open_connection(server, port, attempts=1):
             writer.close()
             await writer.wait_closed()
             logging.debug(f"Connection closed {server, port}")
+            status_updates_queue.put_nowait(
+                connection_states.CLOSED)
 
 
 def get_message_with_datetime(message):

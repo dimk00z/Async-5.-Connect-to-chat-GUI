@@ -10,9 +10,10 @@ from utils.chat import open_connection, get_answer, login, write_message_to_chat
 
 async def read_msgs(host, port,
                     queue, histoty_queue,
-                    file_name, attempts=3):
+                    file_name, connection_states, status_updates_queue, attempts=3):
     await load_from_file(file_name, message_queue=queue)
-    async with open_connection(host, port, attempts) as rw:
+    async with open_connection(host, port, connection_states,
+                               status_updates_queue, attempts) as rw:
         reader = rw[0]
         while True:
             message = await get_answer(reader)
@@ -27,12 +28,15 @@ async def save_messages(histoty_queue, file_name):
         await write_line_to_file(chat_file_name=file_name, line=message)
 
 
-async def send_msgs(host, port, token, attempts, queue):
-    async with open_connection(host, port, attempts) as rw:
+async def send_msgs(host, port, token, connection_states, status_updates_queue, attempts, queue):
+    async with open_connection(host, port, connection_states,
+                               status_updates_queue, attempts) as rw:
         reader, writer = rw
 
         credentials = await login(reader, writer, token, queue)
-
+        # print(credentials)
+        event = gui.NicknameReceived(credentials['nickname'])
+        status_updates_queue.put_nowait(event)
         while True:
             message = await queue.get()
             print(message)
@@ -64,6 +68,8 @@ async def main():
                   queue=messages_queue,
                   histoty_queue=histoty_queue,
                   file_name=history_file_name,
+                  connection_states=gui.ReadConnectionStateChanged,
+                  status_updates_queue=status_updates_queue,
                   attempts=attempts),
         gui.draw(messages_queue=messages_queue,
                  sending_queue=sending_queue,
@@ -71,7 +77,10 @@ async def main():
         save_messages(histoty_queue=histoty_queue,
                       file_name=history_file_name),
         send_msgs(host=host, port=output_port,
-                  token=token, attempts=attempts, queue=sending_queue))
+                  token=token,
+                  connection_states=gui.SendingConnectionStateChanged,
+                  status_updates_queue=status_updates_queue,
+                  attempts=attempts, queue=sending_queue))
 
 
 if __name__ == '__main__':
