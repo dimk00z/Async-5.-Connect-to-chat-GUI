@@ -55,27 +55,32 @@ async def send_msgs(host, port, token,
 async def watch_for_connection(watchdog_queue):
     while True:
         try:
-            async with timeout(2):
+            async with timeout(5):
                 message = await watchdog_queue.get()
                 watchdog_logger.info(message)
         except asyncio.TimeoutError:
-            watchdog_logger.info('2s timeout is elapsed')
+            watchdog_logger.info('5s timeout is elapsed')
+            raise ConnectionError
 
 
 async def handle_connection(queues, history_file_name, host, ports, token, attempts):
-    async with create_task_group() as tg:
+    while True:
+        try:
+            async with create_task_group() as tg:
 
-        await tg.spawn(read_msgs, host, ports['input_port'],
-                       history_file_name, gui.ReadConnectionStateChanged,
-                       queues, attempts)
-        await tg.spawn(save_messages, queues['history_queue'],
-                       history_file_name)
-        await tg.spawn(send_msgs, host,
-                       ports['output_port'], token,
-                       gui.SendingConnectionStateChanged,
-                       attempts, queues)
-        await tg.spawn(watch_for_connection,
-                       queues['watchdog_queue'])
+                await tg.spawn(read_msgs, host, ports['input_port'],
+                               history_file_name, gui.ReadConnectionStateChanged,
+                               queues, attempts)
+                await tg.spawn(save_messages, queues['history_queue'],
+                               history_file_name)
+                await tg.spawn(send_msgs, host,
+                               ports['output_port'], token,
+                               gui.SendingConnectionStateChanged,
+                               attempts, queues)
+                await tg.spawn(watch_for_connection,
+                               queues['watchdog_queue'])
+        except ConnectionError as ex:
+            app_logger.debug('Reconnecting to server')
 
 
 async def main():
