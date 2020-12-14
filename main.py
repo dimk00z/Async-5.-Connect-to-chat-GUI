@@ -1,12 +1,17 @@
 import asyncio
 from anyio import create_task_group, run
 import gui
+from socket import gaierror
 from async_timeout import timeout
 from utils.parser import get_parser
 from utils.files import write_line_to_file, load_from_file
 from utils.chat import open_connection, get_answer, \
     login, write_message_to_chat, get_message_with_datetime, InvalidToken
 from utils.loggers import app_logger, watchdog_logger
+
+WATCH_CONNECTION_TIMEOUT = 5
+PING_PONG_TIMEOUT = 30
+DELAY_BETWEEN_PING_PONG = 10
 
 
 async def read_msgs(host, port,
@@ -33,52 +38,76 @@ async def save_messages(history_queue, file_name):
                                  line=message)
 
 
+async def send_message(reader, writer, queues):
+    while True:
+        message = await queues['sending_queue'].get()
+        host_answer = await get_answer(reader)
+        await write_message_to_chat(writer, message)
+        queues["watchdog_queue"].put_nowait(
+            "Connection is alive. Message sent")
+        app_logger.debug(get_message_with_datetime(message))
+
+
+async def ping_pong(reader, writer, watchdog_queue):
+    while True:
+        try:
+            async with timeout(PING_PONG_TIMEOUT):
+                writer.write('\n'.encode())
+                await writer.drain()
+                await reader.readline()
+            await asyncio.sleep(DELAY_BETWEEN_PING_PONG)
+            watchdog_queue.put_nowait("Connection is alive. Ping message sent")
+        except gaierror:
+            watchdog_queue.put_nowait(
+                "socket.gaierror: no internet connection")
+            raise ConnectionError
+
+
 async def send_msgs(host, port, token,
                     connection_states,  attempts, queues):
     async with open_connection(host, port, connection_states,
                                queues['status_updates_queue'], attempts) as rw:
         reader, writer = rw
-
         credentials = await login(reader, writer,
                                   token, queues['sending_queue'])
         event = gui.NicknameReceived(credentials['nickname'])
         queues['status_updates_queue'].put_nowait(event)
         while True:
-            message = await queues['sending_queue'].get()
-            host_answer = await get_answer(reader)
-            await write_message_to_chat(writer, message)
-            queues["watchdog_queue"].put_nowait(
-                "Connection is alive. Message sent")
-            app_logger.debug(get_message_with_datetime(message))
+            async with create_task_group() as send_group:
+                await send_group.spawn(send_message, reader, writer, queues)
+                await send_group.spawn(ping_pong, reader, writer, queues['watchdog_queue'])
 
 
 async def watch_for_connection(watchdog_queue):
     while True:
         try:
-            async with timeout(5):
+            async with timeout(WATCH_CONNECTION_TIMEOUT):
                 message = await watchdog_queue.get()
                 watchdog_logger.info(message)
         except asyncio.TimeoutError:
-            watchdog_logger.info('5s timeout is elapsed')
+            watchdog_logger.info(
+                f'{WATCH_CONNECTION_TIMEOUT}s timeout is elapsed')
             raise ConnectionError
 
 
 async def handle_connection(queues, history_file_name, host, ports, token, attempts):
     while True:
         try:
-            async with create_task_group() as tg:
+            async with create_task_group() as connection_group:
 
-                await tg.spawn(read_msgs, host, ports['input_port'],
-                               history_file_name, gui.ReadConnectionStateChanged,
-                               queues, attempts)
-                await tg.spawn(save_messages, queues['history_queue'],
-                               history_file_name)
-                await tg.spawn(send_msgs, host,
-                               ports['output_port'], token,
-                               gui.SendingConnectionStateChanged,
-                               attempts, queues)
-                await tg.spawn(watch_for_connection,
-                               queues['watchdog_queue'])
+                await connection_group.spawn(read_msgs, host, ports['input_port'],
+                                             history_file_name, gui.ReadConnectionStateChanged,
+                                             queues, attempts)
+                await connection_group.spawn(save_messages, queues['history_queue'],
+                                             history_file_name)
+                await connection_group.spawn(watch_for_connection,
+                                             queues['watchdog_queue'])
+
+                await connection_group.spawn(send_msgs, host,
+                                             ports['output_port'], token,
+                                             gui.SendingConnectionStateChanged,
+                                             attempts, queues)
+
         except ConnectionError as ex:
             app_logger.debug('Reconnecting to server')
 
