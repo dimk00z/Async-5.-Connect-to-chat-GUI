@@ -1,4 +1,5 @@
 import asyncio
+from anyio import create_task_group, run
 import gui
 from async_timeout import timeout
 from utils.parser import get_parser
@@ -61,14 +62,33 @@ async def watch_for_connection(watchdog_queue):
             watchdog_logger.info('2s timeout is elapsed')
 
 
+async def handle_connection(queues, history_file_name, host, ports, token, attempts):
+    async with create_task_group() as tg:
+
+        await tg.spawn(read_msgs, host, ports['input_port'],
+                       history_file_name, gui.ReadConnectionStateChanged,
+                       queues, attempts)
+        await tg.spawn(save_messages, queues['history_queue'],
+                       history_file_name)
+        await tg.spawn(send_msgs, host,
+                       ports['output_port'], token,
+                       gui.SendingConnectionStateChanged,
+                       attempts, queues)
+        await tg.spawn(watch_for_connection,
+                       queues['watchdog_queue'])
+
+
 async def main():
 
     parser = get_parser()
     args = parser.parse_args()
     host = args.host
     attempts = args.attempts
-    input_port = args.input_port
-    output_port = args.output_port
+    ports = {
+        'input_port': args.input_port,
+        'output_port': args.output_port
+    }
+
     history_file_name = args.file_name
     token = args.token
     token = 'd5a5384e-3a2c-11eb-8c47-0242ac110002'
@@ -80,29 +100,17 @@ async def main():
         'history_queue': asyncio.Queue(),
         'watchdog_queue': asyncio.Queue(),
     }
-
-    await asyncio.gather(
-        read_msgs(host=host, port=input_port,
-                  queues=queues,
-                  file_name=history_file_name,
-                  connection_states=gui.ReadConnectionStateChanged,
-                  attempts=attempts),
-        gui.draw(messages_queue=queues['messages_queue'],
-                 sending_queue=queues['sending_queue'],
-                 status_updates_queue=queues['status_updates_queue']),
-        save_messages(history_queue=queues['history_queue'],
-                      file_name=history_file_name),
-        send_msgs(host=host, port=output_port,
-                  token=token,
-                  connection_states=gui.SendingConnectionStateChanged,
-                  attempts=attempts,
-                  queues=queues),
-        watch_for_connection(watchdog_queue=queues['watchdog_queue']))
+    async with create_task_group() as tg:
+        await tg.spawn(gui.draw, queues['messages_queue'],
+                       queues['sending_queue'],
+                       queues['status_updates_queue'])
+        await tg.spawn(handle_connection, queues, history_file_name,
+                       host, ports, token, attempts)
 
 
 if __name__ == '__main__':
     try:
-        asyncio.run(main())
+        run(main)
     except (KeyboardInterrupt, gui.TkAppClosed, InvalidToken) as ex:
         if type(ex) is InvalidToken:
             print('----------------------------')

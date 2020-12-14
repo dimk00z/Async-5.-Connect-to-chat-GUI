@@ -3,3 +3,4 @@ ConfigArgParse==1.2.3
 pycodestyle==2.6.0
 toml==0.10.2
 async-timeout==3.0.1
+anyio==2.0.2
