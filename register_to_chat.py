@@ -20,11 +20,10 @@ async def get_account_hash(
     credentials: dict = json.loads(
         await reader.readline())
     if 'account_hash' in credentials:
-        print(credentials['account_hash'])
         return credentials['account_hash']
 
 
-async def do_registartions(
+async def fetch_user_hash(
         nick_name: str,
         host: str, port: str) -> None:
 
@@ -40,13 +39,13 @@ async def do_registartions(
                                  mode='w')
 
 
-def get_credentials(nick_name: str, label: tk.Label,
-                    host: str, port: str):
+def register_user(nick_name: str, label: tk.Label,
+                  host: str, port: str):
     answer = tk.messagebox.askyesno(
         title="Warning",
         message=f"Is '{nick_name}' nick name correct?")
     if answer:
-        asyncio.run(do_registartions(
+        asyncio.run(fetch_user_hash(
             nick_name=nick_name,
             host=host, port=port))
         label['text'] = f'Now you can connect to chat as {nick_name}'
@@ -80,7 +79,7 @@ def main():
     register_button = tk.Button(
         text='Register',
         width=15, height=3)
-    register_button['command'] = lambda: get_credentials(
+    register_button['command'] = lambda: register_user(
         nick_name=nick_name_entry.get(),
         label=info_label,
         host=host, port=port)
