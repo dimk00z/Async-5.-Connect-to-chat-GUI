@@ -15,8 +15,8 @@ from enum import EnumMeta
 
 from utils.parser import get_parser
 from utils.files import write_line_to_file, load_from_file
-from utils.chat import open_connection, get_answer, \
-    login, write_message_to_chat, get_message_with_datetime, InvalidToken
+from utils.chat import open_connection, get_answer, login
+from utils.chat import write_message_to_chat, get_message_with_datetime, InvalidToken
 from utils.loggers import app_logger, watchdog_logger
 
 WATCH_CONNECTION_TIMEOUT = 5
@@ -24,10 +24,11 @@ PING_PONG_TIMEOUT = 30
 DELAY_BETWEEN_PING_PONG = 10
 
 
-async def read_msgs(host: str, port: str,
-                    file_name: str, connection_states: EnumMeta,
-                    queues: Dict[str, asyncio.queues.Queue],
-                    attempts: int = 3):
+async def read_msgs(
+        host: str, port: str,
+        file_name: str, connection_states: EnumMeta,
+        queues: Dict[str, asyncio.queues.Queue],
+        attempts: int = 3):
     await load_from_file(file_name,
                          message_queue=queues['messages_queue'])
     async with open_connection(host, port,
@@ -51,9 +52,10 @@ async def save_messages(history_queue: asyncio.queues.Queue,
                                  line=message)
 
 
-async def send_message(reader: asyncio.streams.StreamReader,
-                       writer: asyncio.streams.StreamReader,
-                       queues: Dict[str, asyncio.queues.Queue]) -> None:
+async def send_message(
+        reader: asyncio.streams.StreamReader,
+        writer: asyncio.streams.StreamReader,
+        queues: Dict[str, asyncio.queues.Queue]) -> None:
     while True:
         message: str = await queues['sending_queue'].get()
         await get_answer(reader)
@@ -63,9 +65,10 @@ async def send_message(reader: asyncio.streams.StreamReader,
         app_logger.debug(get_message_with_datetime(message))
 
 
-async def ping_pong(reader: asyncio.streams.StreamReader,
-                    writer: asyncio.streams.StreamReader,
-                    watchdog_queue: asyncio.queues.Queue) -> None:
+async def ping_pong(
+        reader: asyncio.streams.StreamReader,
+        writer: asyncio.streams.StreamReader,
+        watchdog_queue: asyncio.queues.Queue) -> None:
     while True:
         try:
             async with timeout(PING_PONG_TIMEOUT):
@@ -80,18 +83,21 @@ async def ping_pong(reader: asyncio.streams.StreamReader,
             raise ConnectionError
 
 
-async def send_msgs(host: str, port: str,
-                    token: str,
-                    connection_states,
-                    attempts: int,
-                    queues: Dict[str, asyncio.queues.Queue]) -> None:
-    async with open_connection(host, port, connection_states,
-                               queues['status_updates_queue'],
-                               attempts) as rw:
+async def send_msgs(
+        host: str, port: str,
+        token: str,
+        connection_states,
+        attempts: int,
+        queues: Dict[str, asyncio.queues.Queue]) -> None:
+    async with open_connection(
+            host, port, connection_states,
+            queues['status_updates_queue'],
+            attempts) as rw:
 
         reader, writer = rw
-        credentials: dict = await login(reader, writer,
-                                        token, queues['sending_queue'])
+        credentials: dict = await login(
+            reader, writer,
+            token, queues['sending_queue'])
         event: gui.NicknameReceived = gui.NicknameReceived(
             credentials['nickname'])
         queues['status_updates_queue'].put_nowait(event)
@@ -103,7 +109,8 @@ async def send_msgs(host: str, port: str,
                                        writer, queues['watchdog_queue'])
 
 
-async def watch_for_connection(watchdog_queue: asyncio.queues.Queue):
+async def watch_for_connection(
+        watchdog_queue: asyncio.queues.Queue):
     while True:
         try:
             async with timeout(WATCH_CONNECTION_TIMEOUT):
@@ -115,29 +122,34 @@ async def watch_for_connection(watchdog_queue: asyncio.queues.Queue):
             raise ConnectionError
 
 
-async def handle_connection(queues: Dict[str, asyncio.queues.Queue],
-                            history_file_name: str,
-                            host: str, ports: Dict[str, str],
-                            token: str, attempts: int):
+async def handle_connection(
+        queues: Dict[str, asyncio.queues.Queue],
+        history_file_name: str,
+        host: str, ports: Dict[str, str],
+        token: str, attempts: int):
     while True:
         try:
             async with create_task_group() as connection_group:
 
-                await connection_group.spawn(read_msgs, host,
-                                             ports['input_port'],
-                                             history_file_name,
-                                             gui.ReadConnectionStateChanged,
-                                             queues, attempts)
-                await connection_group.spawn(save_messages,
-                                             queues['history_queue'],
-                                             history_file_name)
-                await connection_group.spawn(watch_for_connection,
-                                             queues['watchdog_queue'])
+                await connection_group.spawn(
+                    read_msgs, host,
+                    ports['input_port'],
+                    history_file_name,
+                    gui.ReadConnectionStateChanged,
+                    queues, attempts)
+                await connection_group.spawn(
+                    save_messages,
+                    queues['history_queue'],
+                    history_file_name)
+                await connection_group.spawn(
+                    watch_for_connection,
+                    queues['watchdog_queue'])
 
-                await connection_group.spawn(send_msgs, host,
-                                             ports['output_port'], token,
-                                             gui.SendingConnectionStateChanged,
-                                             attempts, queues)
+                await connection_group.spawn(
+                    send_msgs, host,
+                    ports['output_port'], token,
+                    gui.SendingConnectionStateChanged,
+                    attempts, queues)
 
         except ConnectionError as ex:
             app_logger.debug('Reconnecting to server')
@@ -180,7 +192,8 @@ async def main():
 if __name__ == '__main__':
     try:
         run(main)
-    except (KeyboardInterrupt, gui.TkAppClosed, InvalidToken) as ex:
+    except (KeyboardInterrupt,
+            gui.TkAppClosed, InvalidToken) as ex:
         if type(ex) is InvalidToken:
             print('----------------------------')
             print(ex)
