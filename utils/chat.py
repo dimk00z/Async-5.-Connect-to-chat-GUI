@@ -1,7 +1,7 @@
 import asyncio
 import contextlib
 import json
-import enum
+from enum import EnumMeta
 from utils.loggers import app_logger, watchdog_logger
 from tkinter import messagebox
 
@@ -24,7 +24,7 @@ class InvalidToken(Exception):
 
 @contextlib.asynccontextmanager
 async def open_connection(server: str, port: str,
-                          connection_states: enum.EnumMeta,
+                          connection_states: EnumMeta,
                           status_updates_queue: asyncio.queues.Queue,
                           attempts: int = 1) -> None:
 

@@ -10,7 +10,9 @@ from os import getenv
 from dotenv import load_dotenv
 from socket import gaierror
 
-from typing import Dict, Tuple
+from typing import Dict
+from enum import EnumMeta
+
 
 from utils.parser import get_parser
 from utils.files import write_line_to_file, load_from_file
@@ -23,15 +25,16 @@ PING_PONG_TIMEOUT = 30
 DELAY_BETWEEN_PING_PONG = 10
 
 
-async def read_msgs(host, port,
-                    file_name, connection_states,
+async def read_msgs(host: str, port: str,
+                    file_name: str, connection_states: EnumMeta,
                     queues: Dict[str, asyncio.queues.Queue],
                     attempts: int = 3):
     await load_from_file(file_name,
                          message_queue=queues['messages_queue'])
     async with open_connection(host, port,
                                connection_states,
-                               queues['status_updates_queue'], attempts) as rw:
+                               queues['status_updates_queue'],
+                               attempts) as rw:
         reader = rw[0]
         while True:
             message = await get_answer(reader)
@@ -54,7 +57,7 @@ async def send_message(reader: asyncio.streams.StreamReader,
                        queues: Dict[str, asyncio.queues.Queue]) -> None:
     while True:
         message: str = await queues['sending_queue'].get()
-        host_answer = await get_answer(reader)
+        await get_answer(reader)
         await write_message_to_chat(writer, message)
         queues["watchdog_queue"].put_nowait(
             "Connection is alive. Message sent")
@@ -78,12 +81,14 @@ async def ping_pong(reader: asyncio.streams.StreamReader,
             raise ConnectionError
 
 
-async def send_msgs(host: str, port: str, token: str,
+async def send_msgs(host: str, port: str,
+                    token: str,
                     connection_states,
                     attempts: int,
                     queues: Dict[str, asyncio.queues.Queue]) -> None:
     async with open_connection(host, port, connection_states,
-                               queues['status_updates_queue'], attempts) as rw:
+                               queues['status_updates_queue'],
+                               attempts) as rw:
 
         reader, writer = rw
         credentials: dict = await login(reader, writer,
@@ -93,8 +98,10 @@ async def send_msgs(host: str, port: str, token: str,
         queues['status_updates_queue'].put_nowait(event)
         while True:
             async with create_task_group() as send_group:
-                await send_group.spawn(send_message, reader, writer, queues)
-                await send_group.spawn(ping_pong, reader, writer, queues['watchdog_queue'])
+                await send_group.spawn(send_message, reader,
+                                       writer, queues)
+                await send_group.spawn(ping_pong, reader,
+                                       writer, queues['watchdog_queue'])
 
 
 async def watch_for_connection(watchdog_queue: asyncio.queues.Queue):
@@ -117,10 +124,13 @@ async def handle_connection(queues: Dict[str, asyncio.queues.Queue],
         try:
             async with create_task_group() as connection_group:
 
-                await connection_group.spawn(read_msgs, host, ports['input_port'],
-                                             history_file_name, gui.ReadConnectionStateChanged,
+                await connection_group.spawn(read_msgs, host,
+                                             ports['input_port'],
+                                             history_file_name,
+                                             gui.ReadConnectionStateChanged,
                                              queues, attempts)
-                await connection_group.spawn(save_messages, queues['history_queue'],
+                await connection_group.spawn(save_messages,
+                                             queues['history_queue'],
                                              history_file_name)
                 await connection_group.spawn(watch_for_connection,
                                              queues['watchdog_queue'])
@@ -162,8 +172,10 @@ async def main():
         await tg.spawn(gui.draw, queues['messages_queue'],
                        queues['sending_queue'],
                        queues['status_updates_queue'])
-        await tg.spawn(handle_connection, queues, history_file_name,
-                       host, ports, token, attempts)
+        await tg.spawn(handle_connection, queues,
+                       history_file_name,
+                       host, ports,
+                       token, attempts)
 
 
 if __name__ == '__main__':
