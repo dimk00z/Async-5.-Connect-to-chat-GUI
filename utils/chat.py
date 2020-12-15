@@ -24,9 +24,9 @@ class InvalidToken(Exception):
 
 @contextlib.asynccontextmanager
 async def open_connection(server: str, port: str,
-                          connection_states: EnumMeta,
-                          status_updates_queue: asyncio.queues.Queue,
-                          attempts: int = 1) -> None:
+                          connection_states: EnumMeta = None,
+                          status_updates_queue: asyncio.queues.Queue = None,
+                          attempts: int = 1):
 
     attempt: int = 0
     connected: bool = False
@@ -35,8 +35,9 @@ async def open_connection(server: str, port: str,
         try:
             app_logger.debug(f'The connection opened {server, port}')
             connected: bool = True
-            status_updates_queue.put_nowait(
-                connection_states.ESTABLISHED)
+            if status_updates_queue:
+                status_updates_queue.put_nowait(
+                    connection_states.ESTABLISHED)
             yield reader, writer
             break
         except (ConnectionRefusedError, ConnectionResetError):
@@ -44,8 +45,9 @@ async def open_connection(server: str, port: str,
                 app_logger.debug(f"The connection was closed {server, port}")
                 break
             if attempt >= attempts:
-                status_updates_queue.put_nowait(
-                    connection_states.INITIATED)
+                if status_updates_queue:
+                    status_updates_queue.put_nowait(
+                        connection_states.INITIATED)
                 app_logger.debug(
                     f"There is no connection. Next try in {ATTEMPT_DELAY_SECS} seconds")
                 await asyncio.sleep(ATTEMPT_DELAY_SECS)
@@ -55,8 +57,9 @@ async def open_connection(server: str, port: str,
             writer.close()
             await writer.wait_closed()
             app_logger.debug(f"Connection closed {server, port}")
-            status_updates_queue.put_nowait(
-                connection_states.CLOSED)
+            if status_updates_queue:
+                status_updates_queue.put_nowait(
+                    connection_states.CLOSED)
 
 
 def get_message_with_datetime(message: str) -> str:
@@ -94,7 +97,6 @@ async def get_user_text(queue: asyncio.queues.Queue) -> str:
 
 async def register_user(reader: asyncio.streams.StreamReader,
                         writer: asyncio.streams.StreamReader,
-                        queue: asyncio.queues.Queue,
                         after_incorrect_login: bool = False) -> dict:
     if after_incorrect_login == False:
         await get_answer(reader)

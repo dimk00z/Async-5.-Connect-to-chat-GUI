@@ -4,8 +4,8 @@ from pathlib import Path
 
 
 async def write_line_to_file(chat_file_name: str,
-                             line: str) -> None:
-    async with aiofiles.open(chat_file_name, "a") as chat_history:
+                             line: str, mode:str='a') -> None:
+    async with aiofiles.open(chat_file_name, mode) as chat_history:
         await chat_history.write(f'{line}\n')
 
 
