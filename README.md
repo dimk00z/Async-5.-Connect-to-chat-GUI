@@ -2,12 +2,6 @@
 
 This is a solution of the task to connect to a chat using async python libraries. 
 
-There are two scripts:
-
-`chat_listener.py` - allows to write all chat messages to file
-
-`chat_writer.py` - uses for sending messages to the chat.
-
 ## How to install
 
 Python version required: 3.7+
@@ -16,35 +10,45 @@ Python version required: 3.7+
 pip install -r requirements.txt
 ```
 
+There are two scripts:
+
+`register_to_chat.py` - uses to register new user for the chat
+
+`minecraft_chat.py` - main application for chatting
+
+
 ## How to launch
 
 Both scripts have these parameters:
 
 1. `-h`, `--host` - chat host, default is `minechat.dvmn.org`
-2. `-p`, `--port` - port number
-3. `-a`, `--attempts` - number of attemts for reconnections, default is `3`
+2. `-op`, `--output_port` - port number for sending messages, default is `5050`
 
 Specific parameters:
 
-* For  `chat_listener.py`:
+* For  `minecraft_chat.py`:
 
-`-f`, `--file_name` - file name for saving chat history, default is `minechat.history`
+1. `-f`, `--file_name` - file name for saving chat history, default is `minechat.history`
+2. `-ip`, `--input_port` - port number for reading messages, default is `5000`
+3. `-a`, `--attempts` - port number for reading messages, default is `3`
 
-* For  `chat_writer.py`:
+## Using example:
 
-`-t`, `--token` - chat token if you have one
+### Registration
+```bash
+python register_to_chat.py -h minechat.dvmn.org -p 5000
+```
+![Registration window](screenshots/registration.png)
 
-Using example:
+After registration program writes to `.env` file your secret token
+
+### Chatting
 
 ```bash
-python chat_listener.py -h minechat.dvmn.org -p 5000 -a 3
-
+python minecraft_chat.py -h minechat.dvmn.org -ip 5000 -op 5050 -a 3 -f minechat.history
 ```
-```bash
-python chat_writer.py -h minechat.dvmn.org -p 5000 -a 3 -f minechat.history
+![Chat window](screenshots/main.png)
 
-```
-
-# Project's aims
+## Project's aims
 
 This code was written for learning Python course [Devman](https://dvmn.org).
