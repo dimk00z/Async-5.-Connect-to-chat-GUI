@@ -2,9 +2,9 @@ import asyncio
 from anyio import create_task_group, run
 from async_timeout import timeout
 
-import gui
+import utils.gui as gui
 
-from pathlib import Path
+from pathlib import Path, PosixPath
 from os import getenv
 
 from dotenv import load_dotenv
@@ -12,7 +12,6 @@ from socket import gaierror
 
 from typing import Dict
 from enum import EnumMeta
-
 
 from utils.parser import get_parser
 from utils.files import write_line_to_file, load_from_file
@@ -156,7 +155,7 @@ async def main():
 
     history_file_name: str = args.file_name
 
-    env_path = Path('.') / '.env'
+    env_path: PosixPath = Path('.') / '.env'
     load_dotenv(dotenv_path=env_path)
 
     token: str = getenv('TOKEN')

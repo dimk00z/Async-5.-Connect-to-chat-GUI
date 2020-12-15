@@ -123,10 +123,6 @@ async def login(reader: asyncio.streams.StreamReader,
                 writer: asyncio.streams.StreamReader,
                 token: str, queue: asyncio.queues.Queue):
 
-    # if token is None:
-    #     print(token)
-    #     return await register_user(reader, writer, queue)
-    # TODO: доделать регистрацию!
     credentials: dict = await authorise(token, reader, writer)
     if credentials:
         return credentials
