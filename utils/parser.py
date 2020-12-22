@@ -1,19 +1,16 @@
 import configargparse
 
 
-def get_common_parser() -> configargparse.ArgumentParser:
+def get_parser(
+        is_registration: bool = False) -> configargparse.ArgumentParser:
     parser = configargparse.get_argument_parser()
 
     parser.add_argument("-h", '--host', default='minechat.dvmn.org',
                         help="Host name", type=str)
     parser.add_argument("-op", '--output_port', default=5050,
                         help="Port number", type=int)
-    return parser
-
-
-def get_parser() -> configargparse.ArgumentParser:
-    parser = get_common_parser()
-
+    if is_registration:
+        return parser
     parser.add_argument("-a", '--attempts', default=3,
                         help="Attempts to reconnect", type=int)
     parser.add_argument("-ip", '--input_port', default=5000,

@@ -158,7 +158,8 @@ async def handle_connection(
 async def main():
 
     args = get_parser().parse_args()
-
+    host: str = args.host
+    attempts: int = args.attempts
     ports: Dict[str, str] = {
         'input_port': args.input_port,
         'output_port': args.output_port
@@ -184,10 +185,8 @@ async def main():
                        queues['status_updates_queue'])
         await tg.spawn(handle_connection, queues,
                        history_file_name,
-                       host=args.host,
-                       ports=ports,
-                       token=token,
-                       attempts=args.attempts)
+                       host, ports,
+                       token, attempts)
 
 
 if __name__ == '__main__':
