@@ -4,7 +4,7 @@ import json
 from typing import Tuple
 from pathlib import PosixPath, Path
 from utils.chat import open_connection, get_answer
-from utils.parser import get_parser
+from utils.parser import get_common_parser
 from utils.files import write_line_to_file
 
 
@@ -52,23 +52,32 @@ def register_user(nick_name: str, label: tk.Label,
 
 
 def get_window_center_dimensions(root) -> tuple:
-    width_window: int = root.winfo_screenwidth()
-    height_window: int = root.winfo_screenheight()
-    center_width: int = width_window//2
-    center_height: int = height_window//2
-    return (center_width - 200, center_height-200)
+    window_width: int = root.winfo_screenwidth()
+    window_height: int = root.winfo_screenheight()
+    center_width: int = window_width//2
+    center_height: int = window_height//2
+    return (center_width - 225, center_height-75)
+
+
+def get_window_dimensions(root) -> str:
+    window_width: int = root.winfo_screenwidth()
+    window_height: int = root.winfo_screenheight()
+    center_width: int = window_width//2
+    center_height: int = window_height//2
+    window_offset = 2
+    return (center_width/window_offset,
+            center_height/window_offset)
 
 
 def main():
 
-    args = get_parser().parse_args()
-    host: str = args.host
-    port: str = args.output_port
+    args = get_common_parser().parse_args()
 
     root = tk.Tk()
     root.title("Chat registration")
     root_width, root_height = get_window_center_dimensions(root)
-    root.geometry(f'450x150+{root_width}+{root_height}')
+    windows_size = '450x150'
+    root.geometry(f'{windows_size}+{root_width}+{root_height}')
     info_label = tk.Label(
         text="Enter you nick name",
         font="Arial 14 bold", pady=5)
@@ -82,7 +91,8 @@ def main():
     register_button['command'] = lambda: register_user(
         nick_name=nick_name_entry.get(),
         label=info_label,
-        host=host, port=port)
+        host=args.host,
+        port=args.output_port)
     register_button.pack()
     root.mainloop()
 
