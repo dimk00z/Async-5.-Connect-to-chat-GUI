@@ -1,37 +1,40 @@
-import logging
+watchdog_fmt: str = "{levelname} : {message}"
+app_fmt: str = "{levelname}.{module}:{funcName}:{lineno} - (name) -  - {message}"
+loggers_config: dict = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'std_formatter': {
+            'format': app_fmt,
+            'style': '{'
 
+        },
+        'watchdog_formatter': {
+            'format': watchdog_fmt,
+            'style': '{'
+        },
 
-def setup_logger(
-        logger_name: str,
-        level: int = logging.INFO,
-        fmt: str = "%(levelname)s : %(message)s",
-        datefmt: str = "%H:%M:%S") -> None:
-    log_file_name = f'{logger_name}.log'
-    formatter: logging.Formatter = logging.Formatter(fmt=fmt,
-                                                     datefmt=datefmt)
+    },
+    'handlers': {
+        'app_handler': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'std_formatter',
+        },
 
-    logger: logging.Logger = logging.getLogger(logger_name)
-    logger.setLevel(level)
+        'watchdog_handler': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'watchdog_formatter',
+        },
+    },
+    'loggers': {
+        'app_logger': {
+            'level': 'DEBUG',
+            'handlers': ['app_handler'],
+        },
+        'watchdog_logger': {
+            'level': 'INFO',
+            'handlers': ['watchdog_handler'],
 
-    file_handler: logging.FileHandler = logging.FileHandler(
-        log_file_name)
-
-    file_handler.setFormatter(formatter)
-    stream_handler: logging.StreamHandler = logging.StreamHandler()
-
-    file_handler.setFormatter(formatter)
-    stream_handler.setFormatter(formatter)
-
-    logger.addHandler(file_handler)
-    logger.addHandler(stream_handler)
-
-
-setup_logger('app_logger', level=logging.DEBUG)
-setup_logger('watchdog_logger',
-             fmt="[%(asctime)s] %(message)s", datefmt="%s")
-
-
-app_logger: logging.Logger = logging.getLogger(
-    "app_logger")
-watchdog_logger: logging.Logger = logging.getLogger(
-    "watchdog_logger")
+        },
+    },
+}

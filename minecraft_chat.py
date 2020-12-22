@@ -2,6 +2,8 @@ import asyncio
 from anyio import create_task_group, run
 from async_timeout import timeout
 
+import logging.config
+
 import utils.gui as gui
 
 from pathlib import Path, PosixPath
@@ -17,10 +19,13 @@ from utils.parser import get_parser
 from utils.files import write_line_to_file, load_from_file
 from utils.chat import open_connection, get_answer, login
 from utils.chat import write_message_to_chat, get_message_with_datetime, InvalidToken
-from utils.loggers import app_logger, watchdog_logger
+from utils.loggers import loggers_config
 
 WATCH_CONNECTION_TIMEOUT = 5
 DELAY_BETWEEN_PING_PONG = 10
+
+app_logger = logging.getLogger('app_logger')
+watchdog_logger = logging.getLogger('watchdog_logger')
 
 
 async def read_msgs(
@@ -156,6 +161,7 @@ async def handle_connection(
 async def main():
 
     args = get_parser().parse_args()
+    logging.config.dictConfig(loggers_config)
 
     ports: Dict[str, str] = {
         'input_port': args.input_port,

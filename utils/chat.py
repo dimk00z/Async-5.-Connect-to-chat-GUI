@@ -1,14 +1,15 @@
 import asyncio
 import contextlib
 import json
+import logging
 from enum import EnumMeta
-from utils.loggers import app_logger, watchdog_logger
 from tkinter import messagebox
-
 
 from datetime import datetime
 
 ATTEMPT_DELAY_SECS = 3
+
+app_logger = logging.getLogger('app_logger')
 
 
 class InvalidToken(Exception):
