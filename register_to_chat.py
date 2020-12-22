@@ -1,7 +1,6 @@
 import asyncio
 import tkinter as tk
 import json
-from typing import Tuple
 from pathlib import PosixPath, Path
 from utils.chat import open_connection, get_answer
 from utils.parser import get_parser
@@ -61,9 +60,8 @@ def get_window_center_dimensions(root) -> tuple:
 
 def main():
 
-    args = get_parser().parse_args()
-    host: str = args.host
-    port: str = args.output_port
+    args = get_parser(
+        is_registration=True).parse_args()
 
     root = tk.Tk()
     root.title("Chat registration")
@@ -82,7 +80,7 @@ def main():
     register_button['command'] = lambda: register_user(
         nick_name=nick_name_entry.get(),
         label=info_label,
-        host=host, port=port)
+        host=args.host, port=args.output_port)
     register_button.pack()
     root.mainloop()
 
