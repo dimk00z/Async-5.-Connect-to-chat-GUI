@@ -20,7 +20,6 @@ from utils.chat import write_message_to_chat, get_message_with_datetime, Invalid
 from utils.loggers import app_logger, watchdog_logger
 
 WATCH_CONNECTION_TIMEOUT = 5
-PING_PONG_TIMEOUT = 30
 DELAY_BETWEEN_PING_PONG = 10
 
 
@@ -71,10 +70,9 @@ async def ping_pong(
         watchdog_queue: asyncio.queues.Queue) -> None:
     while True:
         try:
-            async with timeout(PING_PONG_TIMEOUT):
-                writer.write('\n'.encode())
-                await writer.drain()
-                await reader.readline()
+            writer.write('\n'.encode())
+            await writer.drain()
+            await reader.readline()
             await asyncio.sleep(DELAY_BETWEEN_PING_PONG)
             watchdog_queue.put_nowait("Connection is alive. Ping message sent")
         except gaierror:
@@ -158,14 +156,11 @@ async def handle_connection(
 async def main():
 
     args = get_parser().parse_args()
-    host: str = args.host
-    attempts: int = args.attempts
+
     ports: Dict[str, str] = {
         'input_port': args.input_port,
         'output_port': args.output_port
     }
-
-    history_file_name: str = args.file_name
 
     env_path: PosixPath = Path('.') / '.env'
     load_dotenv(dotenv_path=env_path)
@@ -184,9 +179,9 @@ async def main():
                        queues['sending_queue'],
                        queues['status_updates_queue'])
         await tg.spawn(handle_connection, queues,
-                       history_file_name,
-                       host, ports,
-                       token, attempts)
+                       args.file_name,
+                       args.host, ports,
+                       token, args.attempts)
 
 
 if __name__ == '__main__':
