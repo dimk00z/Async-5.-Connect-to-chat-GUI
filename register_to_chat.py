@@ -51,11 +51,11 @@ def register_user(nick_name: str, label: tk.Label,
 
 
 def get_window_center_dimensions(root) -> tuple:
-    width_window: int = root.winfo_screenwidth()
-    height_window: int = root.winfo_screenheight()
+    window_width: int = root.winfo_screenwidth()
+    window_height: int = root.winfo_screenheight()
     windows_offset = 200
-    center_width: int = width_window//2 - windows_offset
-    center_height: int = height_window//2 - windows_offset
+    center_width: int = window_width//2 - windows_offset
+    center_height: int = window_height//2 - windows_offset
 
     return (center_width, center_height)
 
